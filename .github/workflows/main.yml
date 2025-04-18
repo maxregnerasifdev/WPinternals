@@ -1,0 +1,115 @@
+name: Recode WPinternals to MROS Integration
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'WPinternals/**'  # Trigger on changes to WPinternals folder
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'WPinternals/**'
+
+jobs:
+  recode:
+    runs-on: ubuntu-latest  # Runs on the latest Ubuntu runner
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
+      with:
+        ref: ${{ github.sha }}
+
+    - name: Set up .NET SDK
+      uses: actions/setup-dotnet@v1
+      with:
+        dotnet-version: '6.x'  # Specify version of .NET SDK
+
+    - name: Install Dependencies
+      run: |
+        dotnet restore
+
+    - name: Build WPinternals Project
+      run: |
+        dotnet build WPinternals/WPinternals.csproj --configuration Release
+
+    - name: Apply MROS Code Changes Directly
+      run: |
+        echo "Modifying code for MROS integration..."
+        
+        # Modify Bootloader Code for MROS
+        sed -i 's/WindowsPhone/MROS/g' WPinternals/Bootloader/*.cs  # Replace WindowsPhone with MROS
+        
+        # Update Bootloader Initialization with MROS features
+        echo "// MROS-specific bootloader initialization" >> WPinternals/Bootloader/Bootloader.cs
+        echo "public void InitializeMrosBootloader() {" >> WPinternals/Bootloader/Bootloader.cs
+        echo "    Console.WriteLine(\"Initializing MROS bootloader...\");" >> WPinternals/Bootloader/Bootloader.cs
+        echo "    ConfigureMrosPartitions();" >> WPinternals/Bootloader/Bootloader.cs
+        echo "    ConfigureMrosKernel();" >> WPinternals/Bootloader/Bootloader.cs
+        echo "}" >> WPinternals/Bootloader/Bootloader.cs
+        echo "private void ConfigureMrosPartitions() {" >> WPinternals/Bootloader/Bootloader.cs
+        echo "    // Add custom partition configuration logic for MROS" >> WPinternals/Bootloader/Bootloader.cs
+        echo "    Console.WriteLine(\"Configuring MROS partitions...\");" >> WPinternals/Bootloader/Bootloader.cs
+        echo "}" >> WPinternals/Bootloader/Bootloader.cs
+        echo "private void ConfigureMrosKernel() {" >> WPinternals/Bootloader/Bootloader.cs
+        echo "    // Add MROS-specific kernel configuration" >> WPinternals/Bootloader/Bootloader.cs
+        echo "    Console.WriteLine(\"Configuring MROS kernel...\");" >> WPinternals/Bootloader/Bootloader.cs
+        echo "}" >> WPinternals/Bootloader/Bootloader.cs
+
+        # Update Configuration Files to Support MROS
+        cp ./config/mros_config.xml WPinternals/Config/mros_config.xml  # Replace with MROS config
+
+        # Integrating MROS Libraries into the Project
+        cp ./libs/mros_lib.dll WPinternals/Libraries/  # Copy MROS-specific libraries
+        echo "<ItemGroup>" >> WPinternals/WPinternals.csproj
+        echo "  <Reference Include=\"MrosLib\">" >> WPinternals/WPinternals.csproj
+        echo "    <HintPath>..\Libraries\mros_lib.dll</HintPath>" >> WPinternals/WPinternals.csproj
+        echo "  </Reference>" >> WPinternals/WPinternals.csproj
+        echo "</ItemGroup>" >> WPinternals/WPinternals.csproj
+
+        # Replace UI Elements (logos and images) for MROS Branding
+        cp ./assets/mros_logo.png WPinternals/Views/Logo.png  # Replace logo with MROS logo
+        cp ./assets/mros_logo_small.png WPinternals/Views/Logo-Small.png  # Small logo
+
+        # Update App.xaml for MROS branding
+        sed -i 's/WPinternals/MROS/g' WPinternals/App.xaml  # Update app name to MROS
+
+        # Modify Views to Include MROS Features
+        echo "<Button Content=\"MROS Bootloader\" Command=\"{Binding StartMrosBootloaderCommand}\" />" >> WPinternals/Views/MainView.xaml
+        echo "<Button Content=\"MROS Flash Firmware\" Command=\"{Binding StartMrosFlashCommand}\" />" >> WPinternals/Views/MainView.xaml
+
+        # Update Phone Reboot Logic for MROS
+        echo "// MROS-specific phone reboot logic" >> WPinternals/PhoneReboot.cs
+        echo "public void RebootPhoneToMros() {" >> WPinternals/PhoneReboot.cs
+        echo "    Console.WriteLine(\"Rebooting phone to MROS...\");" >> WPinternals/PhoneReboot.cs
+        echo "    ExecuteMrosRebootCommand();" >> WPinternals/PhoneReboot.cs
+        echo "}" >> WPinternals/PhoneReboot.cs
+        echo "private void ExecuteMrosRebootCommand() {" >> WPinternals/PhoneReboot.cs
+        echo "    // Command to reboot to MROS" >> WPinternals/PhoneReboot.cs
+        echo "    System.Diagnostics.Process.Start(\"mros_reboot_tool\");" >> WPinternals/PhoneReboot.cs
+        echo "}" >> WPinternals/PhoneReboot.cs
+
+        # Update Patch Definitions (if required by MROS)
+        cp ./patches/mros_patch.xml WPinternals/Patches/mros_patch.xml  # Add MROS-specific patches
+
+        echo "MROS code integration completed."
+
+    - name: Run Unit Tests (Optional)
+      run: |
+        dotnet test WPinternals/WPinternals.csproj --configuration Release
+
+    - name: Commit and Push Changes
+      run: |
+        git config --global user.name "GitHub Actions"
+        git config --global user.email "actions@github.com"
+        git add .
+        git commit -m "Recoded WPinternals to integrate MROS functionality"
+        git push origin main
+
+    - name: Create Build Artifact (Optional)
+      uses: actions/upload-artifact@v2
+      with:
+        name: mros-integrated-wpinternals
+        path: ./WPinternals/bin/Release/net6.0/publish/
